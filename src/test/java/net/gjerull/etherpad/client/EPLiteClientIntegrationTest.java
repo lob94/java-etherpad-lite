@@ -37,6 +37,10 @@ public class EPLiteClientIntegrationTest {
                 "http://localhost:9001",
                 "a04f17343b51afaa036a7428171dd873469cd85911ab43be0503d29d2acbbd58"
         );
+        ((ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory
+                .getLogger("org.mockserver.mock"))
+       .setLevel(ch.qos.logback.classic.Level.OFF);
+        
         mockServer = startClientAndServer(9001);
     }
 
@@ -358,15 +362,10 @@ public class EPLiteClientIntegrationTest {
         
         new MockServerClient("localhost",9001).when(HttpRequest.request()
     			.withMethod("POST").withPath("/api/1.2.13/createSession?")
-    			.withBody("apikey=a04f17343b51afaa036a7428171dd873469cd85911ab43be0503d29d2acbbd58&groupID=g.67oHR6WpvDYEF1N8&validUntil="+Long.toString(inNHours)+"&authorID=a.eAeCUAaCyAV4Z867")
     			).respond(HttpResponse.response().withStatusCode(200)
     					.withBody("{\"code\":0,\"message\":\"ok\",\"data\":{\"sessionID\":\"s.10b2e0760c5064e8f441235c67ae8138\"}}"));
     	
-        //changed method createSession from createSession(String, String, int) to createSession(String, String, Long)
-        //reason: 	needed to know the long validUntil for mockserver's expectation, doing the inNHours before the expectation
-        //			and on the method createSession gives two different validUnits, caused by the delay 
-        
-        Map sessionResponse = client.createSession(groupId, authorId, inNHours);
+        Map sessionResponse = client.createSession(groupId, authorId, sessionDuration);
         String firstSessionId = (String) sessionResponse.get("sessionID");
 
         Calendar oneYearFromNow = Calendar.getInstance();
@@ -374,6 +373,8 @@ public class EPLiteClientIntegrationTest {
         Date sessionValidUntil = oneYearFromNow.getTime();
         
         long seconds = sessionValidUntil.getTime() / 1000L;
+        
+        new MockServerClient("localhost",9001).reset();
         
         new MockServerClient("localhost",9001).when(HttpRequest.request()
     			.withMethod("POST").withPath("/api/1.2.13/createSession?")
